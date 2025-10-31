@@ -1,11 +1,10 @@
 # audio_player.py
 import pygame
 import io
-import time
 
 class AudioPlayer:
     """
-    Plays audio data using pygame.
+    Plays audio data using pygame in a non-blocking way.
     """
     def __init__(self):
         try:
@@ -16,22 +15,23 @@ class AudioPlayer:
 
     def play(self, audio_bytes):
         """
-        Plays audio from bytes. This method blocks until playback is complete.
+        Starts playing audio from bytes. This is NON-BLOCKING.
         """
         if not audio_bytes or not pygame.mixer.get_init():
             return
         
         try:
-            # Use BytesIO to treat the byte string as a file
             audio_stream = io.BytesIO(audio_bytes)
             pygame.mixer.music.load(audio_stream)
             pygame.mixer.music.play()
-            print("Playing assistant's response...")
-            
-            # Block and wait for the music to finish
-            while pygame.mixer.music.get_busy():
-                time.sleep(0.1)
-            print("Playback finished.")
-
+            print("Started playback of assistant's response...")
         except Exception as e:
             print(f"Error playing audio: {e}")
+
+    def stop(self):
+        """
+        Stops any currently playing audio immediately.
+        """
+        if pygame.mixer.get_init() and pygame.mixer.music.get_busy():
+            pygame.mixer.music.stop()
+            print("Audio playback interrupted.")
