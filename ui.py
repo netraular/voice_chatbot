@@ -2,58 +2,112 @@
 import tkinter as tk
 from tkinter import scrolledtext
 import threading
+import os
+import datetime
+import json
+
+# ... (otras importaciones no cambian)
 from audio import AudioRecorder
 from groq_api import GroqHandler
 from google_cloud_api import GoogleTTSHandler
 from audio_player import AudioPlayer
 
+CONVERSATIONS_DIR = "conversations"
+
 class Application(tk.Tk):
     def __init__(self):
         super().__init__()
+        # ... (configuración de la ventana no cambia)
         self.title("Groq Voice Assistant")
         self.geometry("480x480")
         self.resizable(False, False)
 
-        # Initialize handlers
+        # Initialize handlers (no cambia)
         self.groq_handler = GroqHandler()
         self.recorder = AudioRecorder(waveform_callback=self.update_waveform)
         self.tts_handler = GoogleTTSHandler()
         self.audio_player = AudioPlayer()
         
-        # Initialize chat history
+        ## NUEVA LÓGICA DE GESTIÓN DE SESIÓN ##
+        self.turn_counter = 0
+        self.conversation_id = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.conversation_path = os.path.join(CONVERSATIONS_DIR, self.conversation_id)
+        os.makedirs(self.conversation_path, exist_ok=True)
+        print(f"Saving conversation to: {self.conversation_path}")
+
+        # Initialize chat history (no cambia)
         self.chat_history = [
-            # <-- CAMBIADO
             {"role": "system", "content": "Eres un asistente servicial. Mantén tus respuestas concisas y en español."}
         ]
 
         self.create_widgets()
         self.setup_idle_ui()
 
-    def add_message(self, sender, text):
-        # ... (esta función no cambia)
-        self.text_area.config(state=tk.NORMAL)
-        self.text_area.insert(tk.END, f"{sender}: {text}\n\n")
-        self.text_area.config(state=tk.DISABLED)
-        self.text_area.see(tk.END)
-    
-    def process_and_respond(self, filepath):
-        # ... (esta función no cambia)
-        transcribed_text = self.groq_handler.transcribe(filepath)
+    ## MÉTODO PRINCIPAL MODIFICADO ##
+    def process_and_respond(self, user_audio_path):
+        # Step 1: Transcribe the audio
+        transcribed_text = self.groq_handler.transcribe(user_audio_path)
         if not transcribed_text or transcribed_text.startswith("Error:"):
             self.after(0, self.add_message, "System", "No pude entender el audio. Por favor, inténtalo de nuevo.")
             self.after(0, self.setup_idle_ui)
             return
+
         self.after(0, self.add_message, "Tú", transcribed_text)
         self.chat_history.append({"role": "user", "content": transcribed_text})
+
+        # Step 2: Send history to LLM
         self.after(0, self.add_message, "Groq", "Pensando...")
         llm_response = self.groq_handler.get_chat_completion(self.chat_history)
         self.chat_history.append({"role": "assistant", "content": llm_response})
+        
+        # Step 3: Save the updated conversation log
+        self.save_chat_history()
+
+        # Step 4: Synthesize speech from LLM response
         audio_content = self.tts_handler.synthesize_speech(llm_response)
+
+        # Step 5: Save the assistant's audio response
+        if audio_content:
+            assistant_audio_path = os.path.join(self.conversation_path, f"assistant_{self.turn_counter}.mp3")
+            with open(assistant_audio_path, "wb") as f:
+                f.write(audio_content)
+            print(f"Assistant audio saved to {assistant_audio_path}")
+
+        # Step 6: Update UI and play audio
         self.after(0, self.update_last_message, llm_response)
         self.audio_player.play(audio_content)
+
+        # Step 7: Increment turn counter and reset UI
+        self.turn_counter += 1
         self.after(0, self.setup_idle_ui)
 
-    # El resto del archivo no necesita cambios...
+    def send_recording_flow(self):
+        self.send_button.config(state=tk.DISABLED)
+        self.cancel_button.config(state=tk.DISABLED)
+        self.recorder.stop()
+        self.add_message("Sistema", "Procesando audio...")
+        
+        # Construye la ruta para el audio del usuario y lo guarda
+        user_audio_path = os.path.join(self.conversation_path, f"user_{self.turn_counter}.wav")
+        saved_path = self.recorder.save(user_audio_path)
+        
+        if saved_path:
+            threading.Thread(target=self.process_and_respond, args=(saved_path,)).start()
+        else:
+            self.add_message("Sistema", "No se grabó audio.")
+            self.setup_idle_ui()
+    
+    ## NUEVA FUNCIÓN AUXILIAR ##
+    def save_chat_history(self):
+        log_path = os.path.join(self.conversation_path, "chat_history.json")
+        try:
+            with open(log_path, "w", encoding="utf-8") as f:
+                json.dump(self.chat_history, f, ensure_ascii=False, indent=2)
+            print(f"Chat history saved to {log_path}")
+        except Exception as e:
+            print(f"Failed to save chat history: {e}")
+
+    # ... El resto del archivo (widgets, etc.) no necesita cambios ...
     def create_widgets(self):
         self.control_frame = tk.Frame(self, height=60)
         self.control_frame.pack(side="bottom", fill="x", padx=10, pady=10)
@@ -91,18 +145,12 @@ class Application(tk.Tk):
         self.setup_idle_ui()
         self.add_message("Sistema", "Grabación cancelada.")
 
-    def send_recording_flow(self):
-        self.send_button.config(state=tk.DISABLED)
-        self.cancel_button.config(state=tk.DISABLED)
-        self.recorder.stop()
-        self.add_message("Sistema", "Procesando audio...")
-        filepath = self.recorder.save()
-        if filepath:
-            threading.Thread(target=self.process_and_respond, args=(filepath,)).start()
-        else:
-            self.add_message("Sistema", "No se grabó audio.")
-            self.setup_idle_ui()
-
+    def add_message(self, sender, text):
+        self.text_area.config(state=tk.NORMAL)
+        self.text_area.insert(tk.END, f"{sender}: {text}\n\n")
+        self.text_area.config(state=tk.DISABLED)
+        self.text_area.see(tk.END)
+    
     def update_last_message(self, new_text):
         self.text_area.config(state=tk.NORMAL)
         start_index = self.text_area.search("Groq: Pensando...", "1.0", stopindex="end", backwards=True)

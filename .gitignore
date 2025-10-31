@@ -1,4 +1,3 @@
-audio_input/
-audio_files/
+conversations/
 __pycache__/
 .env
