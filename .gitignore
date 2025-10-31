@@ -1,0 +1,4 @@
+audio_input/
+audio_files/
+__pycache__/
+.env

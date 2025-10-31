@@ -1,0 +1,7 @@
+groq
+python-dotenv
+sounddevice
+scipy
+numpy
+google-cloud-texttospeech
+pygame
