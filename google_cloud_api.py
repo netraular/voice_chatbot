@@ -2,8 +2,8 @@
 from google.cloud import texttospeech
 
 # --- CONFIGURATION ---
-VOICE_NAME = "es-ES-Chirp-HD-F"  # <-- CAMBIADO
-LANGUAGE_CODE = "es-ES"           # <-- CAMBIADO
+VOICE_NAME = "es-ES-Chirp3-HD-Algenib"
+LANGUAGE_CODE = "es-ES"
 
 class GoogleTTSHandler:
     """
