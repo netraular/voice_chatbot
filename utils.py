@@ -26,8 +26,9 @@ def parse_and_clean_llm_response(text: str) -> dict:
     tts_text = re.sub(r'`[^`]*`', '', tts_text)
     # Remove links, keeping the text
     tts_text = re.sub(r'\[(.*?)\]\(.*?\)', r'\1', tts_text)
-    # Remove phrases enclosed in single asterisks (like actions)
-    tts_text = re.sub(r'\s?\*.*?\*\s?', ' ', tts_text)
+    # Remove phrases enclosed in single asterisks (like actions) and any trailing period.
+    # Original: tts_text = re.sub(r'\s?\*.*?\*\s?', ' ', tts_text)
+    tts_text = re.sub(r'\s?\*.*?\*\.?\s?', ' ', tts_text)
     # Remove double asterisks (bold)
     tts_text = re.sub(r'\*\*(.*?)\*\*', r'\1', tts_text)
     # Remove list markers and headers

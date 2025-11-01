@@ -89,14 +89,14 @@ class Application(tk.Tk):
     # Replaces the "Thinking..." message with the final response.
     def update_last_message(self, new_text):
         self.text_area.config(state=tk.NORMAL)
-        start_index = self.text_area.search("Groq: Thinking...", "1.0", stopindex="end", backwards=True)
+        start_index = self.text_area.search("Bot: Thinking...", "1.0", stopindex="end", backwards=True)
         if start_index:
-            end_index = f"{start_index} + {len('Groq: Thinking...')} chars"
+            end_index = f"{start_index} + {len('Bot: Thinking...')} chars"
             self.text_area.delete(start_index, end_index)
             self.text_area.mark_set("insert", start_index)
-            self._insert_styled_text(new_text, prefix="Groq: ")
+            self._insert_styled_text(new_text, prefix="Bot: ")
         else:
-            self.add_message("Groq", new_text)
+            self.add_message("Bot", new_text)
         self.text_area.config(state=tk.DISABLED)
         self.text_area.see(tk.END)
     
@@ -143,7 +143,7 @@ class Application(tk.Tk):
         self.add_message("You", result["user_text"])
         
         # Now, show "Thinking..."
-        self.add_message("Groq", "Thinking...")
+        self.add_message("Bot", "Thinking...")
         self.setup_processing_ui("Thinking...") # Step 2: Show "Thinking" in control frame
         
         # Start the LLM response generation in a new thread

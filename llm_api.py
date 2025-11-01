@@ -89,7 +89,7 @@ class OpenRouterLLMHandler(LLMHandler):
             chat_completion = self.client.chat.completions.create(
                 model=OPENROUTER_LLM_MODEL,
                 messages=self._clean_messages_openai_format(message_history),
-                max_tokens=500, temperature=0.7
+                max_tokens=500
             )
             response = chat_completion.choices[0].message.content
             usage_info = {
