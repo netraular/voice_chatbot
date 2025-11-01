@@ -1,9 +1,8 @@
 # google_cloud_api.py
 from google.cloud import texttospeech
 
-# --- CONFIGURATION ---
-VOICE_NAME = "es-ES-Chirp3-HD-Algenib"
-LANGUAGE_CODE = "es-ES"
+# --- CONFIGURATION (Imported) ---
+from config import VOICE_NAME, LANGUAGE_CODE
 
 class GoogleTTSHandler:
     """

@@ -3,10 +3,10 @@ import os
 from groq import Groq
 from dotenv import load_dotenv
 
-# --- CONFIGURATION ---
+# --- CONFIGURATION (Imported) ---
+from config import TRANSCRIPTION_MODEL, LLM_MODEL
+
 load_dotenv()
-TRANSCRIPTION_MODEL = "whisper-large-v3"
-LLM_MODEL = "openai/gpt-oss-120b"
 
 class GroqHandler:
     # Initializes the Groq API client.
@@ -49,10 +49,7 @@ class GroqHandler:
             clean_messages = []
             for msg in message_history:
                 role = msg.get("role")
-                if role == "assistant":
-                    content = msg.get("content_raw")
-                else:
-                    content = msg.get("content")
+                content = msg.get("content_raw") if role == "assistant" else msg.get("content")
                 
                 if role and content:
                     clean_messages.append({"role": role, "content": content})

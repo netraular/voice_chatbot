@@ -1,3 +1,4 @@
 conversations/
 __pycache__/
+.vscode/
 .env
