@@ -1,4 +1,4 @@
-# Groq Voice Assistant w/Google Cloud TTS
+# Voice Assistant w/Whisper + Google Cloud TTS + LLM apis
 
 A modular desktop application that records audio, transcribes it, gets a response from a Large Language Model (LLM), and speaks the response back to you. All conversations are automatically saved for later review and analysis.
 

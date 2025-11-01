@@ -7,18 +7,16 @@ import datetime
 import numpy as np
 import re
 
-# New modular imports
 from audio import AudioRecorder
 from audio_player import AudioPlayer
 from assistant import VoiceAssistant
 from config import CONVERSATIONS_DIR
 
-# Main application class inheriting from tkinter.Tk.
 class Application(tk.Tk):
-    # Initializes the main application window and its components.
+    # Initializes the main application window.
     def __init__(self):
         super().__init__()
-        self.title("Groq Voice Assistant")
+        self.title("Voice Assistant")
         self.geometry("480x480")
         self.resizable(False, False)
 
@@ -34,7 +32,20 @@ class Application(tk.Tk):
         self.create_widgets()
         self.setup_idle_ui()
 
-    # Configures text styles (tags) for the chat text area.
+    # Creates and lays out the main UI widgets.
+    def create_widgets(self):
+        self.control_frame = tk.Frame(self, height=60)
+        self.control_frame.pack(side="bottom", fill="x", padx=10, pady=10)
+        self.control_frame.pack_propagate(False)
+        self.text_area = scrolledtext.ScrolledText(self, wrap=tk.WORD, state=tk.DISABLED, font=("Arial", 12))
+        self.text_area.pack(pady=(10, 0), padx=10, expand=True, fill="both")
+        self.setup_text_styles()
+        self.control_frame.grid_columnconfigure(0, weight=1)
+        self.control_frame.grid_columnconfigure(1, weight=2)
+        self.control_frame.grid_columnconfigure(2, weight=1)
+        self.add_message("System", "Welcome! Press 'Record' to speak with the assistant.")
+
+    # Configures text styles for the chat area.
     def setup_text_styles(self):
         action_font = font.Font(family="Arial", size=12, slant="italic")
         self.text_area.tag_configure("action", foreground="grey", font=action_font)
@@ -42,7 +53,7 @@ class Application(tk.Tk):
         self.text_area.tag_configure("bold", font=bold_font)
         self.text_area.tag_configure("list_item", lmargin1=20, lmargin2=20)
 
-    # Inserts text with markdown-like styling...
+    # Inserts styled text into the chat area.
     def _insert_styled_text(self, text, prefix=""):
         self.text_area.config(state=tk.NORMAL)
         self.text_area.insert(tk.END, prefix)
@@ -69,19 +80,6 @@ class Application(tk.Tk):
         self.text_area.config(state=tk.DISABLED)
         self.text_area.see(tk.END)
 
-    # Creates and lays out the main UI widgets.
-    def create_widgets(self):
-        self.control_frame = tk.Frame(self, height=60)
-        self.control_frame.pack(side="bottom", fill="x", padx=10, pady=10)
-        self.control_frame.pack_propagate(False)
-        self.text_area = scrolledtext.ScrolledText(self, wrap=tk.WORD, state=tk.DISABLED, font=("Arial", 12))
-        self.text_area.pack(pady=(10, 0), padx=10, expand=True, fill="both")
-        self.setup_text_styles()
-        self.control_frame.grid_columnconfigure(0, weight=1)
-        self.control_frame.grid_columnconfigure(1, weight=2)
-        self.control_frame.grid_columnconfigure(2, weight=1)
-        self.add_message("System", "Welcome! Press 'Record' to speak with the assistant.")
-
     # Adds a new message to the chat display.
     def add_message(self, sender, text):
         self._insert_styled_text(text, prefix=f"{sender}: ")
@@ -89,38 +87,42 @@ class Application(tk.Tk):
     # Replaces the "Thinking..." message with the final response.
     def update_last_message(self, new_text):
         self.text_area.config(state=tk.NORMAL)
-        start_index = self.text_area.search("Bot: Thinking...", "1.0", stopindex="end", backwards=True)
+        search_text = "Assistant: Thinking..."
+        start_index = self.text_area.search(search_text, "1.0", stopindex="end", backwards=True)
         if start_index:
-            end_index = f"{start_index} + {len('Bot: Thinking...')} chars"
+            end_index = f"{start_index} + {len(search_text)} chars"
             self.text_area.delete(start_index, end_index)
             self.text_area.mark_set("insert", start_index)
-            self._insert_styled_text(new_text, prefix="Bot: ")
+            self._insert_styled_text(new_text, prefix="Assistant: ")
         else:
-            self.add_message("Bot", new_text)
+            self.add_message("Assistant", new_text)
         self.text_area.config(state=tk.DISABLED)
         self.text_area.see(tk.END)
     
-    # --- UI FLOW METHODS (MODIFIED) ---
+    # --- UI FLOW METHODS ---
 
+    # Starts the recording process.
     def start_recording_flow(self):
         self.audio_player.stop()
         self.setup_recording_ui()
         self.recorder.start()
         self.add_message("System", "Listening... Press 'Send' when you're done.")
 
+    # Sends the recorded audio for processing.
     def send_recording_flow(self):
-        self.setup_processing_ui("Transcribing...") # Step 1: Show "Transcribing"
+        self.setup_processing_ui("Transcribing...")
         threading.Thread(target=self._transcribe_audio_thread).start()
 
+    # Cancels the current recording.
     def cancel_recording_flow(self):
         self.recorder.stop()
         self.setup_idle_ui()
         self.add_message("System", "Recording canceled.")
 
-    # --- BACKGROUND THREADS AND HANDLERS (MODIFIED) ---
+    # --- BACKGROUND THREADS AND HANDLERS ---
 
+    # Handles audio saving and transcription in a background thread.
     def _transcribe_audio_thread(self):
-        """Thread for Step 1: Save audio and transcribe."""
         self.recorder.stop()
         user_audio_path = os.path.join(self.conversation_path, f"user_{self.turn_counter}.wav")
         saved_path = self.recorder.save(user_audio_path)
@@ -132,30 +134,27 @@ class Application(tk.Tk):
             self.after(0, self.add_message, "System", "No audio was recorded.")
             self.after(0, self.setup_idle_ui)
 
+    # Processes the transcription result in the main UI thread.
     def handle_transcription_result(self, result):
-        """UI update after transcription. Kicks off the next step."""
         if result.get("error"):
             self.add_message("System", result["error"])
             self.setup_idle_ui()
             return
 
-        # Show user's transcribed text in the chat
         self.add_message("You", result["user_text"])
         
-        # Now, show "Thinking..."
-        self.add_message("Bot", "Thinking...")
-        self.setup_processing_ui("Thinking...") # Step 2: Show "Thinking" in control frame
+        self.add_message("Assistant", "Thinking...")
+        self.setup_processing_ui("Thinking...")
         
-        # Start the LLM response generation in a new thread
         threading.Thread(target=self._get_assistant_response_thread).start()
 
+    # Gets the assistant's response in a background thread.
     def _get_assistant_response_thread(self):
-        """Thread for Step 2: Get LLM response and TTS."""
         response_result = self.assistant.generate_assistant_response(self.turn_counter)
         self.after(0, self.handle_final_response, response_result)
 
+    # Processes the final assistant response in the main UI thread.
     def handle_final_response(self, result):
-        """Final UI update with the assistant's response and audio."""
         if result.get("error"):
             self.update_last_message(result["error"])
             self.setup_idle_ui()
@@ -168,6 +167,7 @@ class Application(tk.Tk):
 
     # --- UI SETUP METHODS ---
     
+    # Sets up the UI for processing states.
     def setup_processing_ui(self, text="Processing..."):
         for widget in self.control_frame.winfo_children():
             widget.destroy()
@@ -175,12 +175,14 @@ class Application(tk.Tk):
         self.loading_label = tk.Label(self.control_frame, text=text, font=loading_font)
         self.loading_label.place(relx=0.5, rely=0.5, anchor="center")
 
+    # Sets up the UI for the idle state.
     def setup_idle_ui(self):
         for widget in self.control_frame.winfo_children():
             widget.destroy()
         self.record_button = tk.Button(self.control_frame, text="Record", font=("Arial", 12), command=self.start_recording_flow)
         self.record_button.place(relx=0.5, rely=0.5, anchor="center")
     
+    # Sets up the UI for the recording state.
     def setup_recording_ui(self):
         for widget in self.control_frame.winfo_children():
             widget.destroy()
@@ -193,9 +195,11 @@ class Application(tk.Tk):
 
     # --- WAVEFORM DRAWING ---
 
+    # Schedules a waveform update on the main thread.
     def update_waveform(self, data):
         self.after(0, self._draw_waveform, data)
 
+    # Draws the audio waveform on the canvas.
     def _draw_waveform(self, data):
         if not hasattr(self, 'waveform_canvas') or not self.waveform_canvas.winfo_exists(): return
         canvas = self.waveform_canvas

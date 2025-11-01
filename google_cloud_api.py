@@ -1,13 +1,13 @@
 # google_cloud_api.py
 from google.cloud import texttospeech
 
-# --- CONFIGURATION (Imported) ---
 from config import VOICE_NAME, LANGUAGE_CODE
 
 class GoogleTTSHandler:
     """
     Manages Text-to-Speech synthesis using Google Cloud API.
     """
+    # Initializes the Google Cloud TTS client.
     def __init__(self):
         try:
             self.client = texttospeech.TextToSpeechClient()
@@ -23,11 +23,8 @@ class GoogleTTSHandler:
             print("Please ensure you have authenticated with 'gcloud auth application-default login'")
             self.client = None
 
+    # Synthesizes speech from the input text.
     def synthesize_speech(self, text):
-        """
-        Synthesizes speech from the input text.
-        Returns the audio content as bytes.
-        """
         if not self.client:
             print("TTS client not available.")
             return None

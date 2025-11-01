@@ -3,40 +3,40 @@ import os
 from groq import Groq
 from dotenv import load_dotenv
 
-# --- CONFIGURATION (Imported) ---
 from config import TRANSCRIPTION_MODEL
 
 load_dotenv()
 
 class GroqHandler:
     """
-    Gestiona la transcripción de audio usando la API de Groq (Whisper).
+    Manages audio transcription using the Groq API (Whisper).
     """
+    # Initializes the Groq API client.
     def __init__(self):
         try:
             self.client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
             if not self.client.api_key:
-                raise ValueError("GROQ_API_KEY no encontrada en el fichero .env o es inválida.")
-            print("Cliente de Groq inicializado correctamente (para transcripción).")
+                raise ValueError("GROQ_API_KEY not found in .env file or is invalid.")
+            print("Groq client initialized successfully (for transcription).")
         except Exception as e:
-            print(f"Error inicializando el cliente de Groq: {e}")
+            print(f"Error initializing Groq client: {e}")
             self.client = None
 
+    # Transcribes an audio file to text using the Whisper model.
     def transcribe(self, filepath):
-        """ Transcribe un fichero de audio a texto usando el modelo Whisper. """
         if not self.client:
-            return "Error: El cliente de Groq no está inicializado."
+            return "Error: Groq client is not initialized."
 
-        print(f"Enviando {filepath} para transcripción...")
+        print(f"Sending {filepath} for transcription...")
         try:
             with open(filepath, "rb") as file:
                 transcription = self.client.audio.transcriptions.create(
                     file=(os.path.basename(filepath), file.read()),
                     model=TRANSCRIPTION_MODEL,
-                    language="es"
+                    language="en"
                 )
-            print("Transcripción completada con éxito.")
+            print("Transcription completed successfully.")
             return transcription.text
         except Exception as e:
-            print(f"Error de transcripción: {e}")
-            return f"Error: No se pudo transcribir el audio. {e}"
+            print(f"Transcription error: {e}")
+            return f"Error: Could not transcribe the audio. {e}"
