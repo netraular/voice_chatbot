@@ -46,10 +46,16 @@ class GroqHandler:
 
         print(f"Sending message history to LLM ('{LLM_MODEL}')...")
         try:
-            # Create a clean version of the history for the API, containing only 'role' and 'content'.
-            clean_messages = [
-                {"role": msg["role"], "content": msg["content"]} for msg in message_history
-            ]
+            clean_messages = []
+            for msg in message_history:
+                role = msg.get("role")
+                if role == "assistant":
+                    content = msg.get("content_raw")
+                else:
+                    content = msg.get("content")
+                
+                if role and content:
+                    clean_messages.append({"role": role, "content": content})
 
             chat_completion = self.client.chat.completions.create(
                 messages=clean_messages,
@@ -70,10 +76,8 @@ class GroqHandler:
                 print(f"Token Usage: {usage_info}")
 
             print("LLM response received.")
-            # Return a dictionary with the response and no error on success.
             return {"response": response, "usage": usage_info, "error": None}
             
         except Exception as e:
             print(f"LLM Chat Error: {e}")
-            # Return a dictionary with the error message on failure.
             return {"response": None, "usage": None, "error": str(e)}
