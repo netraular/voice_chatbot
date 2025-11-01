@@ -22,15 +22,12 @@ class Application(tk.Tk):
         self.geometry("480x480")
         self.resizable(False, False)
 
-        # UI-specific components
         self.recorder = AudioRecorder(waveform_callback=self.update_waveform)
         self.audio_player = AudioPlayer()
         
-        # Core logic handler
         self.conversation_id = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         self.assistant = VoiceAssistant(self.conversation_id)
         
-        # Local state for UI
         self.turn_counter = 0
         self.conversation_path = os.path.join(CONVERSATIONS_DIR, self.conversation_id)
         
@@ -41,13 +38,11 @@ class Application(tk.Tk):
     def setup_text_styles(self):
         action_font = font.Font(family="Arial", size=12, slant="italic")
         self.text_area.tag_configure("action", foreground="grey", font=action_font)
-
         bold_font = font.Font(family="Arial", size=12, weight="bold")
         self.text_area.tag_configure("bold", font=bold_font)
-        
         self.text_area.tag_configure("list_item", lmargin1=20, lmargin2=20)
 
-    # Inserts text with markdown-like styling (bold, italic, lists) into the text area.
+    # Inserts text with markdown-like styling...
     def _insert_styled_text(self, text, prefix=""):
         self.text_area.config(state=tk.NORMAL)
         self.text_area.insert(tk.END, prefix)
@@ -73,23 +68,6 @@ class Application(tk.Tk):
         self.text_area.insert(tk.END, "\n\n")
         self.text_area.config(state=tk.DISABLED)
         self.text_area.see(tk.END)
-
-    # Handles the conversation turn by delegating to the assistant.
-    def process_and_respond(self, user_audio_path):
-        # Delegate core logic to the assistant
-        result = self.assistant.process_turn(user_audio_path, self.turn_counter)
-        
-        # Update UI based on the result
-        if result["user_text"]:
-            self.after(0, self.add_message, "You", result["user_text"])
-        
-        if result.get("error"):
-            print(f"An error occurred: {result['error']}")
-            self.after(0, self.update_last_message, result['error'])
-            self.after(0, self.setup_idle_ui)
-            return
-
-        self.after(0, self.handle_response_playback, result["assistant_ui_text"], result["audio_content"])
 
     # Creates and lays out the main UI widgets.
     def create_widgets(self):
@@ -122,54 +100,87 @@ class Application(tk.Tk):
         self.text_area.config(state=tk.DISABLED)
         self.text_area.see(tk.END)
     
-    # Updates the UI with the final response and plays the synthesized audio.
-    def handle_response_playback(self, llm_response, audio_content):
-        self.update_last_message(llm_response)
-        self.setup_idle_ui()
-        self.audio_player.play(audio_content)
-        self.turn_counter += 1
+    # --- UI FLOW METHODS (MODIFIED) ---
 
-    # Changes the UI to a "thinking" or processing state.
-    def setup_processing_ui(self):
-        for widget in self.control_frame.winfo_children():
-            widget.destroy()
-        loading_font = font.Font(family='Helvetica', size=14)
-        self.loading_label = tk.Label(self.control_frame, text="Thinking...", font=loading_font)
-        self.loading_label.place(relx=0.5, rely=0.5, anchor="center")
-
-    # Sets the UI to its default state with the "Record" button.
-    def setup_idle_ui(self):
-        for widget in self.control_frame.winfo_children():
-            widget.destroy()
-        self.record_button = tk.Button(self.control_frame, text="Record", font=("Arial", 12), command=self.start_recording_flow)
-        self.record_button.place(relx=0.5, rely=0.5, anchor="center")
-    
-    # Starts the audio recording process and updates the UI.
     def start_recording_flow(self):
         self.audio_player.stop()
         self.setup_recording_ui()
         self.recorder.start()
         self.add_message("System", "Listening... Press 'Send' when you're done.")
 
-    # Stops recording and starts the processing thread.
     def send_recording_flow(self):
-        self.add_message("Groq", "Thinking...")
-        self.setup_processing_ui()
-        threading.Thread(target=self._process_audio_thread).start()
+        self.setup_processing_ui("Transcribing...") # Step 1: Show "Transcribing"
+        threading.Thread(target=self._transcribe_audio_thread).start()
 
-    # Runs in a background thread to save and process the recorded audio.
-    def _process_audio_thread(self):
+    def cancel_recording_flow(self):
+        self.recorder.stop()
+        self.setup_idle_ui()
+        self.add_message("System", "Recording canceled.")
+
+    # --- BACKGROUND THREADS AND HANDLERS (MODIFIED) ---
+
+    def _transcribe_audio_thread(self):
+        """Thread for Step 1: Save audio and transcribe."""
         self.recorder.stop()
         user_audio_path = os.path.join(self.conversation_path, f"user_{self.turn_counter}.wav")
         saved_path = self.recorder.save(user_audio_path)
         
         if saved_path:
-            self.process_and_respond(saved_path)
+            transcription_result = self.assistant.transcribe_and_update_history(saved_path)
+            self.after(0, self.handle_transcription_result, transcription_result)
         else:
-            self.after(0, self.update_last_message, "No audio was recorded.")
+            self.after(0, self.add_message, "System", "No audio was recorded.")
             self.after(0, self.setup_idle_ui)
-            
-    # Changes the UI to the recording state (waveform, cancel, send buttons).
+
+    def handle_transcription_result(self, result):
+        """UI update after transcription. Kicks off the next step."""
+        if result.get("error"):
+            self.add_message("System", result["error"])
+            self.setup_idle_ui()
+            return
+
+        # Show user's transcribed text in the chat
+        self.add_message("You", result["user_text"])
+        
+        # Now, show "Thinking..."
+        self.add_message("Groq", "Thinking...")
+        self.setup_processing_ui("Thinking...") # Step 2: Show "Thinking" in control frame
+        
+        # Start the LLM response generation in a new thread
+        threading.Thread(target=self._get_assistant_response_thread).start()
+
+    def _get_assistant_response_thread(self):
+        """Thread for Step 2: Get LLM response and TTS."""
+        response_result = self.assistant.generate_assistant_response(self.turn_counter)
+        self.after(0, self.handle_final_response, response_result)
+
+    def handle_final_response(self, result):
+        """Final UI update with the assistant's response and audio."""
+        if result.get("error"):
+            self.update_last_message(result["error"])
+            self.setup_idle_ui()
+            return
+        
+        self.update_last_message(result["assistant_ui_text"])
+        self.setup_idle_ui()
+        self.audio_player.play(result["audio_content"])
+        self.turn_counter += 1
+
+    # --- UI SETUP METHODS ---
+    
+    def setup_processing_ui(self, text="Processing..."):
+        for widget in self.control_frame.winfo_children():
+            widget.destroy()
+        loading_font = font.Font(family='Helvetica', size=14)
+        self.loading_label = tk.Label(self.control_frame, text=text, font=loading_font)
+        self.loading_label.place(relx=0.5, rely=0.5, anchor="center")
+
+    def setup_idle_ui(self):
+        for widget in self.control_frame.winfo_children():
+            widget.destroy()
+        self.record_button = tk.Button(self.control_frame, text="Record", font=("Arial", 12), command=self.start_recording_flow)
+        self.record_button.place(relx=0.5, rely=0.5, anchor="center")
+    
     def setup_recording_ui(self):
         for widget in self.control_frame.winfo_children():
             widget.destroy()
@@ -180,20 +191,13 @@ class Application(tk.Tk):
         self.send_button = tk.Button(self.control_frame, text="Send", command=self.send_recording_flow)
         self.send_button.grid(row=0, column=2, sticky="e")
 
-    # Stops the recording and reverts the UI to the idle state.
-    def cancel_recording_flow(self):
-        self.recorder.stop()
-        self.setup_idle_ui()
-        self.add_message("System", "Recording canceled.")
+    # --- WAVEFORM DRAWING ---
 
-    # Callback from the recorder to trigger a waveform redraw on the main thread.
     def update_waveform(self, data):
         self.after(0, self._draw_waveform, data)
 
-    # Draws the audio waveform data on the canvas.
     def _draw_waveform(self, data):
-        if not hasattr(self, 'waveform_canvas') or not self.waveform_canvas.winfo_exists():
-            return
+        if not hasattr(self, 'waveform_canvas') or not self.waveform_canvas.winfo_exists(): return
         canvas = self.waveform_canvas
         canvas.delete("all")
         width, height = canvas.winfo_width(), canvas.winfo_height()
@@ -205,5 +209,4 @@ class Application(tk.Tk):
         for i, sample in enumerate(normalized_data[::step]):
             x = (i / (len(normalized_data[::step]) -1)) * width if len(normalized_data[::step]) > 1 else width / 2
             coords.append((x, center_y - sample))
-        if len(coords) > 1:
-            canvas.create_line(coords, fill="lime", width=1)
+        if len(coords) > 1: canvas.create_line(coords, fill="lime", width=1)

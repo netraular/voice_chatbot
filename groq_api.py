@@ -4,28 +4,30 @@ from groq import Groq
 from dotenv import load_dotenv
 
 # --- CONFIGURATION (Imported) ---
-from config import TRANSCRIPTION_MODEL, LLM_MODEL
+from config import TRANSCRIPTION_MODEL
 
 load_dotenv()
 
 class GroqHandler:
-    # Initializes the Groq API client.
+    """
+    Gestiona la transcripción de audio usando la API de Groq (Whisper).
+    """
     def __init__(self):
         try:
             self.client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
             if not self.client.api_key:
-                raise ValueError("GROQ_API_KEY not found in .env file or is invalid.")
-            print("Groq client initialized successfully.")
+                raise ValueError("GROQ_API_KEY no encontrada en el fichero .env o es inválida.")
+            print("Cliente de Groq inicializado correctamente (para transcripción).")
         except Exception as e:
-            print(f"Error initializing Groq client: {e}")
+            print(f"Error inicializando el cliente de Groq: {e}")
             self.client = None
 
-    # Transcribes an audio file to text using the Whisper model.
     def transcribe(self, filepath):
+        """ Transcribe un fichero de audio a texto usando el modelo Whisper. """
         if not self.client:
-            return "Error: Groq client not initialized."
+            return "Error: El cliente de Groq no está inicializado."
 
-        print(f"Sending {filepath} for transcription...")
+        print(f"Enviando {filepath} para transcripción...")
         try:
             with open(filepath, "rb") as file:
                 transcription = self.client.audio.transcriptions.create(
@@ -33,48 +35,8 @@ class GroqHandler:
                     model=TRANSCRIPTION_MODEL,
                     language="es"
                 )
-            print("Transcription successful.")
+            print("Transcripción completada con éxito.")
             return transcription.text
         except Exception as e:
-            print(f"Transcription Error: {e}")
-            return f"Error: Could not transcribe audio. {e}"
-
-    # Gets a chat completion from the LLM based on the message history.
-    def get_chat_completion(self, message_history):
-        if not self.client:
-            return {"response": None, "usage": None, "error": "Groq client not initialized."}
-
-        print(f"Sending message history to LLM ('{LLM_MODEL}')...")
-        try:
-            clean_messages = []
-            for msg in message_history:
-                role = msg.get("role")
-                content = msg.get("content_raw") if role == "assistant" else msg.get("content")
-                
-                if role and content:
-                    clean_messages.append({"role": role, "content": content})
-
-            chat_completion = self.client.chat.completions.create(
-                messages=clean_messages,
-                model=LLM_MODEL,
-                max_completion_tokens=500,
-                reasoning_effort="low",
-                user="123"
-            )
-            response = chat_completion.choices[0].message.content
-            
-            usage_info = None
-            if chat_completion.usage:
-                usage_info = {
-                    "prompt_tokens": chat_completion.usage.prompt_tokens,
-                    "completion_tokens": chat_completion.usage.completion_tokens,
-                    "completion_time": chat_completion.usage.completion_time
-                }
-                print(f"Token Usage: {usage_info}")
-
-            print("LLM response received.")
-            return {"response": response, "usage": usage_info, "error": None}
-            
-        except Exception as e:
-            print(f"LLM Chat Error: {e}")
-            return {"response": None, "usage": None, "error": str(e)}
+            print(f"Error de transcripción: {e}")
+            return f"Error: No se pudo transcribir el audio. {e}"

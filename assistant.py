@@ -4,58 +4,62 @@ import json
 import datetime
 
 from groq_api import GroqHandler
+from llm_api import get_llm_handler
 from google_cloud_api import GoogleTTSHandler
 from utils import parse_and_clean_llm_response
 from config import SYSTEM_PROMPT, CONVERSATIONS_DIR
 
 class VoiceAssistant:
     """
-    Manages the core logic of the voice assistant, decoupling it from the UI.
+    Gestiona la lógica central del asistente de voz, desacoplándola de la UI.
     """
     def __init__(self, conversation_id):
-        self.groq_handler = GroqHandler()
+        self.transcription_handler = GroqHandler()
+        self.llm_handler = get_llm_handler()
         self.tts_handler = GoogleTTSHandler()
 
         self.conversation_id = conversation_id
         self.conversation_path = os.path.join(CONVERSATIONS_DIR, self.conversation_id)
         os.makedirs(self.conversation_path, exist_ok=True)
-        print(f"Assistant logic initialized. Saving conversation to: {self.conversation_path}")
+        print(f"Lógica del asistente inicializada. Guardando conversación en: {self.conversation_path}")
 
         self.chat_history = [{"role": "system", "content": SYSTEM_PROMPT}]
 
-    def process_turn(self, user_audio_path, turn_counter):
+    def transcribe_and_update_history(self, user_audio_path):
         """
-        Handles a full conversation turn: transcribe, get LLM response, synthesize speech.
-        Returns a dictionary with results for the UI.
+        Paso 1: Transcribe el audio del usuario y actualiza el historial de chat.
+        Devuelve el texto transcrito o un error.
         """
-        # 1. Transcribe audio
-        transcribed_text = self.groq_handler.transcribe(user_audio_path)
+        transcribed_text = self.transcription_handler.transcribe(user_audio_path)
         if not transcribed_text or transcribed_text.startswith("Error:"):
-            return {"error": "Could not understand the audio.", "user_text": ""}
+            return {"error": "No se pudo entender el audio.", "user_text": ""}
 
-        user_message = {
-            "role": "user", "content": transcribed_text,
-            "timestamp": datetime.datetime.now().isoformat()
-        }
+        user_message = {"role": "user", "content": transcribed_text, "timestamp": datetime.datetime.now().isoformat()}
         self.chat_history.append(user_message)
+        
+        return {"user_text": transcribed_text, "error": None}
 
-        # 2. Get LLM response
-        llm_data = self.groq_handler.get_chat_completion(self.chat_history)
+    def generate_assistant_response(self, turn_counter):
+        """
+        Paso 2: Genera la respuesta del LLM, la sintetiza a voz y guarda el historial.
+        """
+        # 1. Obtener respuesta del LLM
+        llm_data = self.llm_handler.get_chat_completion(self.chat_history)
         if llm_data.get("error"):
             self.chat_history.append({"role": "system", "content": f"[ERROR] {llm_data['error']}"})
             self.save_chat_history()
-            return {"error": llm_data["error"], "user_text": transcribed_text}
+            return {"error": llm_data["error"]}
 
         raw_llm_response = llm_data["response"]
         usage_info = llm_data["usage"]
 
         if not raw_llm_response or not raw_llm_response.strip():
-            error_msg = "Could not generate a response. Please try again."
+            error_msg = "No se pudo generar una respuesta. Por favor, inténtalo de nuevo."
             self.chat_history.append({"role": "assistant", "content": f"[{error_msg}]"})
             self.save_chat_history()
-            return {"error": error_msg, "user_text": transcribed_text}
+            return {"error": error_msg}
         
-        # 3. Process and clean text for UI and TTS
+        # 2. Procesar y limpiar texto para UI y TTS
         processed_text = parse_and_clean_llm_response(raw_llm_response)
 
         assistant_message = {
@@ -65,14 +69,18 @@ class VoiceAssistant:
             "content_tts": processed_text["for_tts"]
         }
         if usage_info:
-            self.chat_history[-2]["prompt_tokens"] = usage_info["prompt_tokens"] # Add to user message
-            assistant_message["completion_tokens"] = usage_info["completion_tokens"]
-            assistant_message["completion_time"] = usage_info["completion_time"]
+            if "prompt_tokens" in usage_info:
+                # El mensaje de usuario es el penúltimo en el historial
+                self.chat_history[-1]["prompt_tokens"] = usage_info["prompt_tokens"]
+            if "completion_tokens" in usage_info:
+                assistant_message["completion_tokens"] = usage_info["completion_tokens"]
+            if "completion_time" in usage_info:
+                assistant_message["completion_time"] = usage_info["completion_time"]
         
         self.chat_history.append(assistant_message)
         self.save_chat_history()
 
-        # 4. Synthesize speech
+        # 3. Sintetizar voz
         audio_content = self.tts_handler.synthesize_speech(processed_text["for_tts"])
         if audio_content:
             assistant_audio_path = os.path.join(self.conversation_path, f"assistant_{turn_counter}.mp3")
@@ -80,7 +88,6 @@ class VoiceAssistant:
                 f.write(audio_content)
 
         return {
-            "user_text": transcribed_text,
             "assistant_ui_text": processed_text["for_ui"],
             "audio_content": audio_content,
             "error": None
@@ -91,6 +98,6 @@ class VoiceAssistant:
         try:
             with open(log_path, "w", encoding="utf-8") as f:
                 json.dump(self.chat_history, f, ensure_ascii=False, indent=2)
-            print(f"Chat history saved to {log_path}")
+            print(f"Historial de chat guardado en {log_path}")
         except Exception as e:
-            print(f"Failed to save chat history: {e}")
+            print(f"Fallo al guardar el historial de chat: {e}")

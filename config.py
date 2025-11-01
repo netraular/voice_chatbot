@@ -4,9 +4,20 @@
 SAMPLE_RATE = 16000
 CHANNELS = 1
 
+# --- LLM PROVIDER ---
+# Elige tu proveedor: 'groq' o 'openrouter'.
+# OpenRouter está configurado por defecto.
+LLM_PROVIDER = "openrouter"
+
 # --- GROQ API ---
+# Se usa para la transcripción independientemente del proveedor de LLM.
 TRANSCRIPTION_MODEL = "whisper-large-v3"
-LLM_MODEL = "openai/gpt-oss-120b"
+# Modelo de LLM a usar si LLM_PROVIDER se establece en 'groq'.
+GROQ_LLM_MODEL = "openai/gpt-oss-120b"
+
+# --- OPENROUTER API ---
+# Modelo de LLM a usar si LLM_PROVIDER se establece en 'openrouter'.
+OPENROUTER_LLM_MODEL = "qwen/qwen3-235b-a22b:free"
 
 # --- GOOGLE CLOUD TTS ---
 VOICE_NAME = "es-ES-Chirp3-HD-Algenib"

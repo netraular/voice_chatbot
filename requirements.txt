@@ -5,3 +5,4 @@ scipy
 numpy
 google-cloud-texttospeech
 pygame
+openai
