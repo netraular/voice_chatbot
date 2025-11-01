@@ -5,9 +5,9 @@ SAMPLE_RATE = 16000
 CHANNELS = 1
 
 # --- LLM PROVIDER ---
-# Elige tu proveedor: 'groq' o 'openrouter'.
-# OpenRouter está configurado por defecto.
-LLM_PROVIDER = "openrouter"
+# Elige tu proveedor: 'gemini', 'openrouter' o 'groq'.
+# Gemini está configurado por defecto.
+LLM_PROVIDER = "gemini"
 
 # --- GROQ API ---
 # Se usa para la transcripción independientemente del proveedor de LLM.
@@ -18,6 +18,10 @@ GROQ_LLM_MODEL = "openai/gpt-oss-120b"
 # --- OPENROUTER API ---
 # Modelo de LLM a usar si LLM_PROVIDER se establece en 'openrouter'.
 OPENROUTER_LLM_MODEL = "qwen/qwen3-235b-a22b:free"
+
+# --- GEMINI API ---
+# Modelo de LLM a usar si LLM_PROVIDER se establece en 'gemini'.
+GEMINI_LLM_MODEL = "gemini-2.5-flash"
 
 # --- GOOGLE CLOUD TTS ---
 VOICE_NAME = "es-ES-Chirp3-HD-Algenib"
