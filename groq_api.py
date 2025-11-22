@@ -3,7 +3,7 @@ import os
 from groq import Groq
 from dotenv import load_dotenv
 
-from config import TRANSCRIPTION_MODEL
+from config import TRANSCRIPTION_LANGUAGE, TRANSCRIPTION_MODEL
 
 load_dotenv()
 
@@ -30,11 +30,14 @@ class GroqHandler:
         print(f"Sending {filepath} for transcription...")
         try:
             with open(filepath, "rb") as file:
-                transcription = self.client.audio.transcriptions.create(
-                    file=(os.path.basename(filepath), file.read()),
-                    model=TRANSCRIPTION_MODEL,
-                    language="en"
-                )
+                request_args = {
+                    "file": (os.path.basename(filepath), file.read()),
+                    "model": TRANSCRIPTION_MODEL,
+                }
+                if TRANSCRIPTION_LANGUAGE:
+                    request_args["language"] = TRANSCRIPTION_LANGUAGE
+
+                transcription = self.client.audio.transcriptions.create(**request_args)
             print("Transcription completed successfully.")
             return transcription.text
         except Exception as e:

@@ -11,6 +11,7 @@ LLM_PROVIDER = "groq"
 # --- GROQ API ---
 TRANSCRIPTION_MODEL = "whisper-large-v3"
 GROQ_LLM_MODEL = "openai/gpt-oss-120b"
+TRANSCRIPTION_LANGUAGE = "es"  # ISO language code used for STT; set to "auto" to let Whisper auto-detect
 
 # --- OPENROUTER API ---
 OPENROUTER_LLM_MODEL = "qwen/qwen3-30b-a3b:free"
