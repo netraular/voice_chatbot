@@ -58,11 +58,16 @@ class VoiceAssistant:
         # 2. Process and clean text for UI and TTS
         processed_text = parse_and_clean_llm_response(raw_llm_response)
 
+        expression = processed_text.get("expression")
+        if expression:
+            print(f"EXPRESSION DETECTED: {expression}")
+
         assistant_message = {
             "role": "assistant",
             "content_raw": raw_llm_response,
             "content_ui": processed_text["for_ui"],
-            "content_tts": processed_text["for_tts"]
+            "content_tts": processed_text["for_tts"],
+            "expression": expression
         }
         if usage_info:
             if "prompt_tokens" in usage_info:
