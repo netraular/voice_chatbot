@@ -8,7 +8,7 @@ from llm_api import get_llm_handler
 from google_cloud_api import GoogleTTSHandler
 from minimax_api import MiniMaxTTSHandler
 from utils import parse_and_clean_llm_response
-from config import SYSTEM_PROMPT, CONVERSATIONS_DIR, TTS_PROVIDER
+from config import SYSTEM_PROMPT, CONVERSATIONS_DIR, TTS_PROVIDER, TTS_MAX_CHARACTERS
 
 class VoiceAssistant:
     """
@@ -88,12 +88,18 @@ class VoiceAssistant:
         self.chat_history.append(assistant_message)
         self.save_chat_history()
 
-        # 3. Synthesize speech
-        audio_content = self.tts_handler.synthesize_speech(processed_text["for_tts"])
-        if audio_content:
-            assistant_audio_path = os.path.join(self.conversation_path, f"assistant_{turn_counter}.mp3")
-            with open(assistant_audio_path, "wb") as f:
-                f.write(audio_content)
+        # 3. Synthesize speech (only if text is within character limit)
+        audio_content = None
+        tts_text = processed_text["for_tts"]
+        
+        if len(tts_text) > TTS_MAX_CHARACTERS:
+            print(f"TTS skipped: text length ({len(tts_text)} chars) exceeds limit ({TTS_MAX_CHARACTERS} chars)")
+        else:
+            audio_content = self.tts_handler.synthesize_speech(tts_text)
+            if audio_content:
+                assistant_audio_path = os.path.join(self.conversation_path, f"assistant_{turn_counter}.mp3")
+                with open(assistant_audio_path, "wb") as f:
+                    f.write(audio_content)
 
         return {
             "assistant_ui_text": processed_text["for_ui"],
