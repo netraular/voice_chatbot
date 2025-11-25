@@ -7,3 +7,4 @@ google-cloud-texttospeech
 pygame
 openai
 google-generativeai
+requests

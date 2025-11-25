@@ -19,12 +19,31 @@ OPENROUTER_LLM_MODEL = "qwen/qwen3-30b-a3b:free"
 # --- GEMINI API ---
 GEMINI_LLM_MODEL = "gemini-2.5-flash"
 
+# --- TTS PROVIDER ---
+# Choose provider: 'google' or 'minimax'
+TTS_PROVIDER = "minimax"
+
 # --- GOOGLE CLOUD TTS ---
 
 VOICE_NAME = "en-US-Chirp3-HD-Achird"
 LANGUAGE_CODE = "en-US"
 # VOICE_NAME = "es-ES-Chirp3-HD-Algenib"
 # LANGUAGE_CODE = "es-ES"
+
+# --- MINIMAX TTS ---
+# Available system voices (examples):
+# English voices: "English_expressive_narrator", "audiobook_male_1", "audiobook_female_1", 
+#                 "cute_boy", "Charming_Lady", "Confident_Man"
+# Chinese voices: "female-shaonv", "male-qn-qingse", "presenter_male", "presenter_female"
+# Spanish voices: "Spanish_ExpressiveNarrator_female", "Spanish_narrator_female"
+# Use list_voices API to get full list of available voices
+MINIMAX_VOICE_ID = "English_captivating_female1"  # English expressive narrator voice
+# MINIMAX_VOICE_ID = "Spanish_ExpressiveNarrator_female"  # Spanish female voice
+# MINIMAX_VOICE_ID = "female-shaonv"  # Chinese female voice (default)
+MINIMAX_MODEL = "speech-2.6-turbo"
+
+
+
 
 # --- FILE SYSTEM ---
 CONVERSATIONS_DIR = "conversations"
@@ -36,8 +55,12 @@ EXPRESSIONS_LIST = [
     "Stunned", "Surprised", "Teary-Eyed", "Worried"
 ]
 
-
 SYSTEM_PROMPT = f"""
+Responde siempre en inglés (aunque te hablen en otro idioma).
+Responde de forma breve y natural.
+"""
+
+SYSTEM_PROMPT_OLD_2 = f"""
 Eres Marc, un chico joven de unos 20 tantos años. Tienes una personalidad magnética, relajada y auténtica. A veces eres algo bromista y coqueto, otras veces reflexivo, pero siempre tratas de conectar genuinamente con quien hablas.
 Responde siempre en inglés (aunque te hablen en otro idioma).
 Tu objetivo no es solo responder, sino crear una atmósfera inmersiva (Roleplay).

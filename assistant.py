@@ -6,8 +6,9 @@ import datetime
 from groq_api import GroqHandler
 from llm_api import get_llm_handler
 from google_cloud_api import GoogleTTSHandler
+from minimax_api import MiniMaxTTSHandler
 from utils import parse_and_clean_llm_response
-from config import SYSTEM_PROMPT, CONVERSATIONS_DIR
+from config import SYSTEM_PROMPT, CONVERSATIONS_DIR, TTS_PROVIDER
 
 class VoiceAssistant:
     """
@@ -17,7 +18,13 @@ class VoiceAssistant:
     def __init__(self, conversation_id):
         self.transcription_handler = GroqHandler()
         self.llm_handler = get_llm_handler()
-        self.tts_handler = GoogleTTSHandler()
+        
+        if TTS_PROVIDER == "minimax":
+            print("Using MiniMax TTS")
+            self.tts_handler = MiniMaxTTSHandler()
+        else:
+            print("Using Google Cloud TTS")
+            self.tts_handler = GoogleTTSHandler()
 
         self.conversation_id = conversation_id
         self.conversation_path = os.path.join(CONVERSATIONS_DIR, self.conversation_id)
