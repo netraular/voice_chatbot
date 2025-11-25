@@ -6,7 +6,7 @@ CHANNELS = 1
 
 # --- LLM PROVIDER ---
 # Choose provider: 'gemini', 'openrouter' o 'groq'.
-LLM_PROVIDER = "groq"
+LLM_PROVIDER = "gemini"
 
 # --- GROQ API ---
 TRANSCRIPTION_MODEL = "whisper-large-v3"
@@ -70,11 +70,13 @@ You speak naturally and casually, like chatting with a close friend.
 # --- SYSTEM PROMPT ---
 # Core instructions for the LLM. The character description will be prepended automatically.
 SYSTEM_PROMPT = f"""
-{CHARACTER_DESCRIPTION.strip()}
 
 RULES:
 - Always respond in English, regardless of the input language.
 - Keep responses brief and concise: 1-2 paragraphs maximum.
 - No long explanations. Be direct and natural.
-- Describe your body language or tone between asterisks. Example: *smiles softly*
+- Describe your body language or tone between asterisks. Example: *(smiles softly)*
+- Avoid symbols and reply only with natural text.
+
+{CHARACTER_DESCRIPTION.strip()}
 """
